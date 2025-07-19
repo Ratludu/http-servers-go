@@ -10,21 +10,28 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (email)
+INSERT INTO users (email, hashed_passwords)
 VALUES (
-	$1
+	$1,
+	$2
 	)
-RETURNING id, created_at, updated_at, email
+RETURNING id, created_at, updated_at, email, hashed_passwords
 `
 
-func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser, email)
+type CreateUserParams struct {
+	Email           string
+	HashedPasswords string
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUser, arg.Email, arg.HashedPasswords)
 	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Email,
+		&i.HashedPasswords,
 	)
 	return i, err
 }
@@ -36,4 +43,21 @@ DELETE FROM users
 func (q *Queries) DeleteAllUsers(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, deleteAllUsers)
 	return err
+}
+
+const findUserFromEmail = `-- name: FindUserFromEmail :one
+SELECT id, created_at, updated_at, email, hashed_passwords FROM users WHERE email = $1
+`
+
+func (q *Queries) FindUserFromEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, findUserFromEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Email,
+		&i.HashedPasswords,
+	)
+	return i, err
 }

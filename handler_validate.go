@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ratludu/http-servers-go/internal/auth"
 	"github.com/ratludu/http-servers-go/internal/database"
 )
 
@@ -20,8 +21,7 @@ type Chirp struct {
 
 func (cfg *apiConfig) handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body   string    `json:"body"`
-		UserId uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -38,9 +38,21 @@ func (cfg *apiConfig) handlerChirpsValidate(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Token error", err)
+		return
+	}
+
+	user, err := auth.ValidateJWT(token, cfg.jwt)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "401 Unauthorized", err)
+		return
+	}
+
 	chirp, err := cfg.db.CreateChirps(context.Background(), database.CreateChirpsParams{
 		Body:   params.Body,
-		UserID: params.UserId,
+		UserID: user,
 	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not insert into the database", err)

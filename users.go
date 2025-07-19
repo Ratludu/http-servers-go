@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ratludu/http-servers-go/internal/auth"
+	"github.com/ratludu/http-servers-go/internal/database"
 )
 
 type User struct {
@@ -14,12 +16,14 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token"`
 }
 
 func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 
 	type parameters struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -30,7 +34,16 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dbUser, err := cfg.db.CreateUser(context.Background(), params.Email)
+	hashedPw, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not hash password", err)
+		return
+	}
+
+	dbUser, err := cfg.db.CreateUser(context.Background(), database.CreateUserParams{
+		Email:           params.Email,
+		HashedPasswords: hashedPw,
+	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create user in database", err)
 		return

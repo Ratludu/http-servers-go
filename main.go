@@ -16,6 +16,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	platform       string
+	jwt            string
 }
 
 func main() {
@@ -24,6 +25,8 @@ func main() {
 
 	plt := os.Getenv("PLATFORM")
 	dbURL := os.Getenv("DB_URL")
+	JWT := os.Getenv("JWT_KEY")
+
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal(err)
@@ -39,6 +42,7 @@ func main() {
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
 		platform:       plt,
+		jwt:            JWT,
 	}
 
 	mux := http.NewServeMux()
@@ -49,6 +53,8 @@ func main() {
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirpsValidate)
 	mux.HandleFunc("POST /api/users", apiCfg.handlerUsers)
 	mux.HandleFunc("GET /api/chirps", apiCfg.handlerChirps)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpID)
+	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
 
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)

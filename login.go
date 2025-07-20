@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ratludu/http-servers-go/internal/auth"
+	"github.com/ratludu/http-servers-go/internal/database"
 )
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
@@ -14,7 +15,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
-		Expiry   *int   `json:"expires_in_seconds"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -38,10 +38,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expiry := time.Hour
-	if params.Expiry != nil {
-		expiry = time.Duration(*params.Expiry) * time.Second
-	}
-
 	token, err := auth.MakeJWT(dbUser.ID, cfg.jwt, time.Duration(expiry))
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not generate token", err)
@@ -49,12 +45,28 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not generate refresh token", err)
+		return
+
+	}
+
+	expiryRefresh := 60 * 24 * time.Hour
+	_, err = cfg.db.CreateRefreshToken(context.Background(), database.CreateRefreshTokenParams{
+		Token:     refreshToken,
+		UserID:    dbUser.ID,
+		ExpiresAt: time.Now().Add(time.Duration(expiryRefresh)),
+	})
+
 	user := User{
-		ID:        dbUser.ID,
-		CreatedAt: dbUser.CreatedAt,
-		UpdatedAt: dbUser.UpdatedAt,
-		Email:     dbUser.Email,
-		Token:     token,
+		ID:           dbUser.ID,
+		CreatedAt:    dbUser.CreatedAt,
+		UpdatedAt:    dbUser.UpdatedAt,
+		Email:        dbUser.Email,
+		Token:        token,
+		RefreshToken: refreshToken,
+		ChirpyRed:    dbUser.IsChirpyRed.Bool,
 	}
 
 	respondWithJSON(w, http.StatusOK, user)

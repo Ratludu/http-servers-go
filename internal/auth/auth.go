@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -76,4 +78,25 @@ func GetBearerToken(headers http.Header) (string, error) {
 	}
 
 	return "", errors.New("Token not foud")
+}
+
+func MakeRefreshToken() (string, error) {
+	key := make([]byte, 32)
+	_, err := rand.Read(key)
+	if err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(key), nil
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+
+	authHeader := headers.Get("Authorization")
+	if len(authHeader) > 7 && authHeader[:7] == "ApiKey " {
+		token := authHeader[7:]
+		return token, nil
+	}
+
+	return "", errors.New("ApiKey not found")
 }

@@ -40,7 +40,7 @@ func (cfg *apiConfig) handlerChirpsValidate(w http.ResponseWriter, r *http.Reque
 
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "Token error", err)
+		respondWithError(w, http.StatusUnauthorized, "401 Unauthorized", err)
 		return
 	}
 
